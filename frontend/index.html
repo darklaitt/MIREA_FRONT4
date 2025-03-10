@@ -10,32 +10,58 @@
     <h1>Каталог товаров</h1>
     <div id="products" class="products-container"></div>
 
+    <!-- Чат -->
+    <div id="chat">
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Введите сообщение">
+        <button onclick="sendMessage()">Отправить</button>
+    </div>
+
     <script>
-        // Функция для загрузки и отображения товаров
-        function loadProducts() {
-            fetch('http://localhost:3000/api/products')
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Полученные товары:', data); // Вывод данных в консоль для отладки
-                    const productsContainer = document.getElementById('products');
-                    productsContainer.innerHTML = ''; // Очищаем контейнер перед обновлением
-                    data.forEach(product => {
-                        const productCard = document.createElement('div');
-                        productCard.className = 'card';
-                        productCard.innerHTML = `
-                            <h2 class="card-title">${product.name}</h2>
-                            <p class="card-description">${product.description}</p>
-                            <div class="card-footer">
-                                <span class="price">₽${product.price}</span>
-                                <button class="buy-button">Купить</button>
-                            </div>
-                        `;
-                        productsContainer.appendChild(productCard);
-                    });
-                })
-                .catch(error => {
-                    console.error('Ошибка при загрузке товаров:', error);
+        // Функция для загрузки и отображения товаров через GraphQL
+        async function loadProducts() {
+            const query = `
+                {
+                    products {
+                        name
+                        price
+                        description
+                    }
+                }
+            `;
+
+            try {
+                const response = await fetch('http://localhost:3000/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ query })
                 });
+
+                const result = await response.json();
+                const products = result.data.products;
+
+                console.log('Полученные товары:', products); // Вывод данных в консоль для отладки
+                const productsContainer = document.getElementById('products');
+                productsContainer.innerHTML = ''; // Очищаем контейнер перед обновлением
+                products.forEach(product => {
+                    const productCard = document.createElement('div');
+                    productCard.className = 'card';
+                    productCard.innerHTML = `
+                        <h2 class="card-title">${product.name}</h2>
+                        <p class="card-description">${product.description}</p>
+                        <div class="card-footer">
+                            <span class="price">₽${product.price}</span>
+                            <button class="buy-button">Купить</button>
+                        </div>
+                    `;
+                    productsContainer.appendChild(productCard);
+                });
+            } catch (error) {
+                console.error('Ошибка при загрузке товаров:', error);
+            }
         }
 
         // Загружаем товары при загрузке страницы
@@ -43,6 +69,23 @@
 
         // Обновляем товары каждые 5 секунд
         setInterval(loadProducts, 5000);
+
+        // WebSocket для чата
+        const ws = new WebSocket('ws://localhost:8081');
+
+        ws.onmessage = (event) => {
+            const messages = document.getElementById('messages');
+            const message = document.createElement('div');
+            message.textContent = event.data;
+            messages.appendChild(message);
+        };
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value;
+            ws.send(message);
+            input.value = '';
+        }
     </script>
 </body>
 </html>
